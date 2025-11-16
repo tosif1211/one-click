@@ -80,9 +80,9 @@ export default function Footer() {
           {/* Footer Links */}
           <div className="flex flex-wrap flex-col sm:flex-row gap-2 sm:gap-6 order-2 md:order-1">
             {[
-              { name: 'Terms of Service', href: '/terms' },
-              { name: 'Privacy Policy', href: '/privacy' },
-              { name: 'Contact Us', href: '/contact' },
+              { name: 'Terms of Service', href: '/terms-of-service' },
+              { name: 'Privacy Policy', href: '/privacy-policy' },
+              { name: 'Contact Us', href: '/contact-us' },
             ].map((link) => (
               <Link
                 key={link.name}
