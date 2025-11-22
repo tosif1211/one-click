@@ -1,9 +1,5 @@
-import React from 'react'
+import AgentDashboard from "@/app/components/agent/AgentDashboard";
 
-function page() {
-  return (
-    <div>page</div>
-  )
+export default function AgentDashboardPage() {
+  return <AgentDashboard />;
 }
-
-export default page
