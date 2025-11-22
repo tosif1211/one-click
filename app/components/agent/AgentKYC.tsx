@@ -23,19 +23,20 @@ const formatDate = (date: string | number | Date) => {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const kycSchema = z.object({
-  fullName: z.string().min(3, 'Full name must be at least 3 characters'),
-  dateOfBirth: z.date().refine((date) => date !== undefined, { message: 'Date of birth is required.' }),
-  panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN Card number format'),
-  aadhaarNumber: z.string().regex(/^[2-9]{1}[0-9]{11}$/, 'Invalid Aadhaar number (12 digits)'),
-  accountHolderName: z.string().min(3, 'Account holder name is required'),
-  accountNumber: z.string().min(9, 'Account number must be valid'),
-  ifscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC Code'),
-  bankName: z.string().min(2, 'Bank name is required'),
+  fullName: z.string().min(1, 'Full name is required'),
+  dateOfBirth: z.string().min(1, 'Date of birth is required'),
+  panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, 'Invalid PAN format'),
+  aadhaarNumber: z.string().regex(/^\d{12}$/, 'Aadhaar must be 12 digits'),
+  accountHolderName: z.string().min(1, 'Account holder name is required'),
+  accountNumber: z.string().min(1, 'Account number is required'),
+  ifscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC code'),
+  bankName: z.string().min(1, 'Bank name is required'),
   upiId: z.string().optional(),
-  aadhaarFront: z.any().refine((file) => file, 'Aadhaar Front is required'),
-  aadhaarBack: z.any().refine((file) => file, 'Aadhaar Back is required'),
-  panCardImage: z.any().refine((file) => file, 'PAN Card image is required'),
+  aadhaarFront: z.instanceof(File).refine((f) => f.size <= MAX_FILE_SIZE, 'File too large'),
+  aadhaarBack: z.instanceof(File).refine((f) => f.size <= MAX_FILE_SIZE, 'File too large'),
+  panCardImage: z.instanceof(File).refine((f) => f.size <= MAX_FILE_SIZE, 'File too large'),
 });
 
 type KycFormValues = z.infer<typeof kycSchema>;
@@ -62,6 +63,8 @@ export default function AgentKYC() {
       upiId: '',
     },
   });
+
+  const { isSubmitting } = form.formState;
 
   const handleFileChange = (
     field: keyof KycFormValues,
@@ -115,22 +118,17 @@ export default function AgentKYC() {
     });
 
     try {
-      const response = await axios.post('/api/kyc/submit', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      await axios.post('/api/kyc/submit', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       toast.dismiss(loadingToast);
       toast.success('KYC submitted successfully! Waiting for admin approval.');
-
       setStatus('PENDING');
     } catch (error: any) {
       toast.dismiss(loadingToast);
-
       const message =
         error.response?.data?.error || error.response?.data?.message || error.message || 'Submission failed';
-
       toast.error(`Submission failed: ${message}`);
     }
   };
@@ -148,11 +146,6 @@ export default function AgentKYC() {
               Our team is reviewing your documents. This usually takes 24-48 hours.
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-center pb-10">
-            <Button variant="outline" onClick={() => setStatus('NOT_SUBMITTED')}>
-              (Dev Mode: Reset to Edit)
-            </Button>
-          </CardContent>
         </Card>
       </div>
     );
@@ -233,59 +226,46 @@ export default function AgentKYC() {
                         </FormItem>
                       )}
                     />
-                 <FormField
-  control={form.control}
-  name="dateOfBirth"
-  render={({ field }) => (
-    <FormItem className="flex flex-col">
-      <FormLabel className="mb-1.5">
-        Date of Birth <span className="text-destructive ms-1">*</span>
-      </FormLabel>
-
-      <Popover>
-        <PopoverTrigger asChild>
-          <FormControl>
-            <Button
-              variant="outline"
-              className={cn(
-                'w-full pl-3 text-left font-normal',
-                !field.value && 'text-muted-foreground'
-              )}
-            >
-              {field.value ? formatDate(field.value) : <span>Enter Date of Birth</span>}
-              <Calendar className="ml-auto h-4 w-4 opacity-50" />
-            </Button>
-          </FormControl>
-        </PopoverTrigger>
-
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={field.value}
-            onSelect={field.onChange}
-            initialFocus
-            captionLayout="dropdown-buttons"
-            fromYear={1900}
-            toYear={new Date().getFullYear()}
-            disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
-            defaultMonth={field.value ? field.value : new Date(2000, 0)}
-            classNames={{
-              dropdown:
-                'bg-white border border-gray-200 rounded px-2 py-1 cursor-pointer text-sm',
-              caption_dropdowns:
-                'flex gap-2 items-center justify-center p-2',
-              dropdown_month: '',
-              dropdown_year: '',
-            }}
-          />
-        </PopoverContent>
-      </Popover>
-
-      <FormMessage />
-    </FormItem>
-  )}
-/>
-
+                    <FormField
+                      control={form.control}
+                      name="dateOfBirth"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel className="mb-1.5">
+                            Date of Birth <span className="text-destructive ms-1">*</span>
+                          </FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    'w-full pl-3 text-left font-normal',
+                                    !field.value && 'text-muted-foreground'
+                                  )}
+                                >
+                                  {field.value ? formatDate(field.value) : <span>Enter Date of Birth</span>}
+                                  <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={field.value ? new Date(field.value) : undefined}
+                                onSelect={(date) => field.onChange(date?.toISOString().split('T')[0] || '')}
+                                disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
+                                captionLayout="dropdown"
+                                fromYear={1900}
+                                toYear={new Date().getFullYear()}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
@@ -331,7 +311,7 @@ export default function AgentKYC() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-end">
-                  <Button type="button" onClick={() => setActiveTab('documents')}>
+                  <Button type="button" onClick={() => setActiveTab('documents')} disabled={isSubmitting}>
                     Next: Documents
                   </Button>
                 </CardFooter>
@@ -481,7 +461,7 @@ export default function AgentKYC() {
                   <Button variant="ghost" type="button" onClick={() => setActiveTab('personal')}>
                     Back
                   </Button>
-                  <Button type="button" onClick={() => setActiveTab('banking')}>
+                  <Button type="button" onClick={() => setActiveTab('banking')} disabled={isSubmitting}>
                     Next: Bank Details
                   </Button>
                 </CardFooter>
@@ -525,7 +505,6 @@ export default function AgentKYC() {
                           </FormLabel>
                           <FormControl>
                             <Input
-                              type="password"
                               placeholder="Enter Account Number"
                               {...field}
                               onChange={(e) => field.onChange(e.target.value.replace(/\s/g, ''))}
@@ -588,7 +567,6 @@ export default function AgentKYC() {
                               onChange={(e) => field.onChange(e.target.value.replace(/\s/g, ''))}
                             />
                           </FormControl>
-                          <FormDescription>For faster small payouts</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -596,10 +574,17 @@ export default function AgentKYC() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button variant="ghost" type="button" onClick={() => setActiveTab('documents')}>
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    onClick={() => setActiveTab('documents')}
+                    disabled={isSubmitting}
+                  >
                     Back
                   </Button>
-                  <Button type="submit">Submit Application</Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                  </Button>
                 </CardFooter>
               </Card>
             </TabsContent>
