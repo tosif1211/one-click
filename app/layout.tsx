@@ -70,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased font-sans bg-background scroll-smooth">
         {children}
         <Toaster
-          position="top-center"
+          position="top-right"
           toastOptions={{
             duration: 3000,
             style: {
