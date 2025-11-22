@@ -15,6 +15,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import axios from 'axios';
 
 const formatDate = (date: string | number | Date) => {
   if (!date) return '';
@@ -24,7 +25,7 @@ const formatDate = (date: string | number | Date) => {
 
 const kycSchema = z.object({
   fullName: z.string().min(3, 'Full name must be at least 3 characters'),
-  dateOfBirth: z.date().refine((date) => date !== undefined, { message: "Date of birth is required." }),
+  dateOfBirth: z.date().refine((date) => date !== undefined, { message: 'Date of birth is required.' }),
   panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN Card number format'),
   aadhaarNumber: z.string().regex(/^[2-9]{1}[0-9]{11}$/, 'Invalid Aadhaar number (12 digits)'),
   accountHolderName: z.string().min(3, 'Account holder name is required'),
@@ -83,23 +84,20 @@ export default function AgentKYC() {
     }
   };
 
-  const removeFile = (
-    field: keyof KycFormValues,
-    setPreview: React.Dispatch<React.SetStateAction<string | null>>
-  ) => {
+  const removeFile = (field: keyof KycFormValues, setPreview: React.Dispatch<React.SetStateAction<string | null>>) => {
     form.setValue(field, undefined);
     setPreview(null);
   };
 
   const onError = (errors: FieldErrors<KycFormValues>) => {
-    toast.error("Please fill in all required fields correctly.");
+    toast.error('Please fill in all required fields correctly.');
     const personalFields = ['fullName', 'dateOfBirth', 'panNumber', 'aadhaarNumber'];
     const documentFields = ['aadhaarFront', 'aadhaarBack', 'panCardImage'];
     const bankingFields = ['accountHolderName', 'accountNumber', 'ifscCode', 'bankName'];
 
-    const hasPersonalError = personalFields.some(field => errors[field as keyof KycFormValues]);
-    const hasDocumentError = documentFields.some(field => errors[field as keyof KycFormValues]);
-    const hasBankingError = bankingFields.some(field => errors[field as keyof KycFormValues]);
+    const hasPersonalError = personalFields.some((field) => errors[field as keyof KycFormValues]);
+    const hasDocumentError = documentFields.some((field) => errors[field as keyof KycFormValues]);
+    const hasBankingError = bankingFields.some((field) => errors[field as keyof KycFormValues]);
 
     if (hasPersonalError) setActiveTab('personal');
     else if (hasDocumentError) setActiveTab('documents');
@@ -108,14 +106,32 @@ export default function AgentKYC() {
 
   const onSubmit = async (data: KycFormValues) => {
     const loadingToast = toast.loading('Submitting KYC documents...');
+
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value) {
+        formData.append(key, value);
+      }
+    });
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await axios.post('/api/kyc/submit', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
       toast.dismiss(loadingToast);
       toast.success('KYC submitted successfully! Waiting for admin approval.');
+
       setStatus('PENDING');
-    } catch (error) {
+    } catch (error: any) {
       toast.dismiss(loadingToast);
-      toast.error('Submission failed. Please try again.');
+
+      const message =
+        error.response?.data?.error || error.response?.data?.message || error.message || 'Submission failed';
+
+      toast.error(`Submission failed: ${message}`);
     }
   };
 
@@ -164,9 +180,7 @@ export default function AgentKYC() {
     <>
       <div className="flex flex-col space-y-2 mb-6">
         <h1 className="text-3xl font-bold tracking-tight text-primary">KYC Verification</h1>
-        <p className="text-muted-foreground">
-          Complete your profile to activate payouts and referral links.
-        </p>
+        <p className="text-muted-foreground">Complete your profile to activate payouts and referral links.</p>
       </div>
 
       <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 mb-6">
@@ -181,9 +195,15 @@ export default function AgentKYC() {
         <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted/50">
-              <TabsTrigger value="personal" className="py-3 gap-2"><User className="w-4 h-4" /> Personal</TabsTrigger>
-              <TabsTrigger value="documents" className="py-3 gap-2"><FileText className="w-4 h-4" /> Documents</TabsTrigger>
-              <TabsTrigger value="banking" className="py-3 gap-2"><CreditCard className="w-4 h-4" /> Banking</TabsTrigger>
+              <TabsTrigger value="personal" className="py-3 gap-2">
+                <User className="w-4 h-4" /> Personal
+              </TabsTrigger>
+              <TabsTrigger value="documents" className="py-3 gap-2">
+                <FileText className="w-4 h-4" /> Documents
+              </TabsTrigger>
+              <TabsTrigger value="banking" className="py-3 gap-2">
+                <CreditCard className="w-4 h-4" /> Banking
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="personal">
@@ -199,7 +219,9 @@ export default function AgentKYC() {
                       name="fullName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Full Name <span className="text-destructive ms-1">*</span></FormLabel>
+                          <FormLabel>
+                            Full Name <span className="text-destructive ms-1">*</span>
+                          </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Enter Full Name"
@@ -211,29 +233,59 @@ export default function AgentKYC() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="dateOfBirth"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel className="mb-1.5">Date of Birth <span className="text-destructive ms-1">*</span></FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button variant="outline" className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
-                                  {field.value ? formatDate(field.value) : <span>Enter Date of Birth</span>}
-                                  <Calendar className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date('1900-01-01')} initialFocus />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                 <FormField
+  control={form.control}
+  name="dateOfBirth"
+  render={({ field }) => (
+    <FormItem className="flex flex-col">
+      <FormLabel className="mb-1.5">
+        Date of Birth <span className="text-destructive ms-1">*</span>
+      </FormLabel>
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <FormControl>
+            <Button
+              variant="outline"
+              className={cn(
+                'w-full pl-3 text-left font-normal',
+                !field.value && 'text-muted-foreground'
+              )}
+            >
+              {field.value ? formatDate(field.value) : <span>Enter Date of Birth</span>}
+              <Calendar className="ml-auto h-4 w-4 opacity-50" />
+            </Button>
+          </FormControl>
+        </PopoverTrigger>
+
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={field.value}
+            onSelect={field.onChange}
+            initialFocus
+            captionLayout="dropdown-buttons"
+            fromYear={1900}
+            toYear={new Date().getFullYear()}
+            disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
+            defaultMonth={field.value ? field.value : new Date(2000, 0)}
+            classNames={{
+              dropdown:
+                'bg-white border border-gray-200 rounded px-2 py-1 cursor-pointer text-sm',
+              caption_dropdowns:
+                'flex gap-2 items-center justify-center p-2',
+              dropdown_month: '',
+              dropdown_year: '',
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
@@ -241,7 +293,9 @@ export default function AgentKYC() {
                       name="panNumber"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>PAN Number <span className="text-destructive ms-1">*</span></FormLabel>
+                          <FormLabel>
+                            PAN Number <span className="text-destructive ms-1">*</span>
+                          </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Enter PAN Number"
@@ -259,7 +313,9 @@ export default function AgentKYC() {
                       name="aadhaarNumber"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Aadhaar Number <span className="text-destructive ms-1">*</span></FormLabel>
+                          <FormLabel>
+                            Aadhaar Number <span className="text-destructive ms-1">*</span>
+                          </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Enter Aadhaar Number"
@@ -275,7 +331,9 @@ export default function AgentKYC() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-end">
-                  <Button type="button" onClick={() => setActiveTab('documents')}>Next: Documents</Button>
+                  <Button type="button" onClick={() => setActiveTab('documents')}>
+                    Next: Documents
+                  </Button>
                 </CardFooter>
               </Card>
             </TabsContent>
@@ -288,75 +346,148 @@ export default function AgentKYC() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField control={form.control} name="aadhaarFront" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Aadhaar Front <span className="text-destructive ms-1">*</span></FormLabel>
-                        <FormControl>
-                          {aadhaarFrontPreview ? (
-                            <div className="relative w-full h-40 group">
-                              <img src={aadhaarFrontPreview} alt="Aadhaar Front Preview" className="h-full w-full object-contain rounded-lg border-2 border-dashed p-1" />
-                              <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeFile('aadhaarFront', setAadhaarFrontPreview)}><X className="h-4 w-4" /></Button>
-                            </div>
-                          ) : (
-                            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                              <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
-                              <p className="text-xs text-muted-foreground">Click to upload</p>
-                              <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange('aadhaarFront', e, setAadhaarFrontPreview)} />
-                            </label>
-                          )}
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="aadhaarBack" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Aadhaar Back <span className="text-destructive ms-1">*</span></FormLabel>
-                        <FormControl>
-                          {aadhaarBackPreview ? (
-                            <div className="relative w-full h-40 group">
-                              <img src={aadhaarBackPreview} alt="Aadhaar Back Preview" className="h-full w-full object-contain rounded-lg border-2 border-dashed p-1" />
-                              <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeFile('aadhaarBack', setAadhaarBackPreview)}><X className="h-4 w-4" /></Button>
-                            </div>
-                          ) : (
-                            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                              <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
-                              <p className="text-xs text-muted-foreground">Click to upload</p>
-                              <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange('aadhaarBack', e, setAadhaarBackPreview)} />
-                            </label>
-                          )}
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    <FormField
+                      control={form.control}
+                      name="aadhaarFront"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            Aadhaar Front <span className="text-destructive ms-1">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            {aadhaarFrontPreview ? (
+                              <div className="relative w-full h-40 group">
+                                <img
+                                  src={aadhaarFrontPreview}
+                                  alt="Aadhaar Front Preview"
+                                  className="h-full w-full object-contain rounded-lg border-2 border-dashed p-1"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="icon"
+                                  className="absolute -top-2 -right-2 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => removeFile('aadhaarFront', setAadhaarFrontPreview)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                                <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
+                                <p className="text-xs text-muted-foreground">Click to upload</p>
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept="image/*"
+                                  onChange={(e) => handleFileChange('aadhaarFront', e, setAadhaarFrontPreview)}
+                                />
+                              </label>
+                            )}
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="aadhaarBack"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            Aadhaar Back <span className="text-destructive ms-1">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            {aadhaarBackPreview ? (
+                              <div className="relative w-full h-40 group">
+                                <img
+                                  src={aadhaarBackPreview}
+                                  alt="Aadhaar Back Preview"
+                                  className="h-full w-full object-contain rounded-lg border-2 border-dashed p-1"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="icon"
+                                  className="absolute -top-2 -right-2 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => removeFile('aadhaarBack', setAadhaarBackPreview)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                                <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
+                                <p className="text-xs text-muted-foreground">Click to upload</p>
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept="image/*"
+                                  onChange={(e) => handleFileChange('aadhaarBack', e, setAadhaarBackPreview)}
+                                />
+                              </label>
+                            )}
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                  <FormField control={form.control} name="panCardImage" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>PAN Card <span className="text-destructive ms-1">*</span></FormLabel>
-                      <FormControl>
-                        {panCardImagePreview ? (
-                          <div className="relative w-full h-40 group">
-                            <img src={panCardImagePreview} alt="PAN Card Preview" className="h-full w-full object-contain rounded-lg border-2 border-dashed p-1" />
-                            <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeFile('panCardImage', setPanCardImagePreview)}><X className="h-4 w-4" /></Button>
-                          </div>
-                        ) : (
-                          <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                            <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
-                            <p className="text-xs text-muted-foreground">Click to upload</p>
-                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange('panCardImage', e, setPanCardImagePreview)} />
-                          </label>
-                        )}
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <FormField
+                    control={form.control}
+                    name="panCardImage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          PAN Card <span className="text-destructive ms-1">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          {panCardImagePreview ? (
+                            <div className="relative w-full h-40 group">
+                              <img
+                                src={panCardImagePreview}
+                                alt="PAN Card Preview"
+                                className="h-full w-full object-contain rounded-lg border-2 border-dashed p-1"
+                              />
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="absolute -top-2 -right-2 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => removeFile('panCardImage', setPanCardImagePreview)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                              <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
+                              <p className="text-xs text-muted-foreground">Click to upload</p>
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => handleFileChange('panCardImage', e, setPanCardImagePreview)}
+                              />
+                            </label>
+                          )}
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button variant="ghost" type="button" onClick={() => setActiveTab('personal')}>Back</Button>
-                  <Button type="button" onClick={() => setActiveTab('banking')}>Next: Bank Details</Button>
+                  <Button variant="ghost" type="button" onClick={() => setActiveTab('personal')}>
+                    Back
+                  </Button>
+                  <Button type="button" onClick={() => setActiveTab('banking')}>
+                    Next: Bank Details
+                  </Button>
                 </CardFooter>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="banking">
               <Card>
                 <CardHeader>
@@ -364,61 +495,110 @@ export default function AgentKYC() {
                   <CardDescription>Enter the bank account for commission payouts.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <FormField control={form.control} name="accountHolderName" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account Holder Name <span className="text-destructive ms-1">*</span></FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter Account Holder Name"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value.trimStart())}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="accountNumber" render={({ field }) => (
+                  <FormField
+                    control={form.control}
+                    name="accountHolderName"
+                    render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Account Number <span className="text-destructive ms-1">*</span></FormLabel>
-                        <FormControl><Input type="password" placeholder="Enter Account Number" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\s/g, ''))} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="ifscCode" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>IFSC Code <span className="text-destructive ms-1">*</span></FormLabel>
-                        <FormControl><Input placeholder="Enter IFSC Code" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\s/g, '').toUpperCase())} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="bankName" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bank Name <span className="text-destructive ms-1">*</span></FormLabel>
+                        <FormLabel>
+                          Account Holder Name <span className="text-destructive ms-1">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter Bank Name"
+                            placeholder="Enter Account Holder Name"
                             {...field}
                             onChange={(e) => field.onChange(e.target.value.trimStart())}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
-                    )} />
-                    <FormField control={form.control} name="upiId" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>UPI ID (Optional)</FormLabel>
-                        <FormControl><Input placeholder="Enter UPI ID" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\s/g, ''))} /></FormControl>
-                        <FormDescription>For faster small payouts</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    )}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="accountNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            Account Number <span className="text-destructive ms-1">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Enter Account Number"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value.replace(/\s/g, ''))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="ifscCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            IFSC Code <span className="text-destructive ms-1">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter IFSC Code"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value.replace(/\s/g, '').toUpperCase())}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="bankName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            Bank Name <span className="text-destructive ms-1">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter Bank Name"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value.trimStart())}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="upiId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>UPI ID (Optional)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter UPI ID"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value.replace(/\s/g, ''))}
+                            />
+                          </FormControl>
+                          <FormDescription>For faster small payouts</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button variant="ghost" type="button" onClick={() => setActiveTab('documents')}>Back</Button>
+                  <Button variant="ghost" type="button" onClick={() => setActiveTab('documents')}>
+                    Back
+                  </Button>
                   <Button type="submit">Submit Application</Button>
                 </CardFooter>
               </Card>
