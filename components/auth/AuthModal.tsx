@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, User, Phone, X, Loader2, CheckCircle2 } from 'lucide-react';
@@ -54,7 +54,7 @@ const registerSchema = z
 type LoginFormData = z.infer<typeof loginSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-export default function AuthModal({ isOpen, onClose, defaultTab = 'register' }: AuthModalProps) {
+function AuthModalContent({ isOpen, onClose, defaultTab = 'register' }: AuthModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [activeTab, setActiveTab] = useState(defaultTab);
@@ -624,5 +624,13 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'register' }: 
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export default function AuthModal(props: AuthModalProps) {
+  return (
+    <Suspense fallback={null}>
+      <AuthModalContent {...props} />
+    </Suspense>
   );
 }
