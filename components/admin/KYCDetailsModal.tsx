@@ -296,7 +296,7 @@ export default function KYCDetailsModal({
                   <div className="flex flex-row gap-2 sm:gap-3 pt-2">
                     <Button
                       variant="destructive"
-                      className="flex-1 h-10 sm:h-11 text-xs sm:text-sm"
+                      className="flex-1 h-10 sm:h-11 text-xs sm:text-sm text-white"
                       onClick={() => handleActionClick('REJECT')}
                       disabled={actionLoading}
                     >
