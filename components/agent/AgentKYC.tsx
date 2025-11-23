@@ -1,12 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'react-hot-toast';
-import { Calendar, ShieldCheck, UploadCloud, CheckCircle2, FileText, CreditCard, User, Clock, X } from 'lucide-react';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import {
+  Calendar,
+  ShieldCheck,
+  UploadCloud,
+  CheckCircle2,
+  FileText,
+  CreditCard,
+  User,
+  Clock,
+  X,
+  XCircle,
+} from 'lucide-react';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -16,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
+import AdminKYCModal from '../admin/KYCDetailsModal';
 
 const formatDate = (date: string | number | Date) => {
   if (!date) return '';
@@ -41,14 +53,15 @@ const kycSchema = z.object({
 
 type KycFormValues = z.infer<typeof kycSchema>;
 
-const INITIAL_STATUS = 'NOT_SUBMITTED';
-
 export default function AgentKYC() {
-  const [status, setStatus] = useState(INITIAL_STATUS);
+  const [status, setStatus] = useState<string | null>(null); // null = loading
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('personal');
   const [aadhaarFrontPreview, setAadhaarFrontPreview] = useState<string | null>(null);
   const [aadhaarBackPreview, setAadhaarBackPreview] = useState<string | null>(null);
   const [panCardImagePreview, setPanCardImagePreview] = useState<string | null>(null);
+  const [kycData, setKycData] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   const form = useForm<KycFormValues>({
     resolver: zodResolver(kycSchema),
@@ -65,6 +78,22 @@ export default function AgentKYC() {
   });
 
   const { isSubmitting } = form.formState;
+
+  // ✅ Fetch KYC Status on Mount
+  useEffect(() => {
+    const fetchKYCStatus = async () => {
+      try {
+        const res = await axios.get('/api/agent/kyc/status');
+        setStatus(res.data.status || 'NOT_SUBMITTED');
+        setRejectionReason(res.data.rejection_reason || null);
+        setKycData(res.data.data); 
+      } catch (error: any) {
+        console.error('Failed to fetch KYC status:', error);
+        setStatus('NOT_SUBMITTED'); // Default fallback
+      }
+    };
+    fetchKYCStatus();
+  }, []);
 
   const handleFileChange = (
     field: keyof KycFormValues,
@@ -109,7 +138,6 @@ export default function AgentKYC() {
 
   const onSubmit = async (data: KycFormValues) => {
     const loadingToast = toast.loading('Submitting KYC documents...');
-
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       if (value) {
@@ -133,16 +161,26 @@ export default function AgentKYC() {
     }
   };
 
+  // ✅ Loading State
+  if (status === null) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // ✅ Status: PENDING (Fully Responsive)
   if (status === 'PENDING') {
     return (
-      <div className="max-w-3xl mx-auto pt-10 px-4">
+      <div className="w-full max-w-3xl mx-auto pt-6 sm:pt-10 px-4">
         <Card className="border-l-4 border-l-yellow-500 shadow-md">
-          <CardHeader className="text-center pb-10 pt-10">
-            <div className="mx-auto w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-              <Clock className="w-10 h-10 text-yellow-600" />
+          <CardHeader className="text-center pb-6 sm:pb-10 pt-6 sm:pt-10 px-4">
+            <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+              <Clock className="w-8 h-8 sm:w-10 sm:h-10 text-yellow-600" />
             </div>
-            <CardTitle className="text-2xl">Verification in Progress</CardTitle>
-            <CardDescription className="text-base mt-2">
+            <CardTitle className="text-xl sm:text-2xl font-bold">Verification in Progress</CardTitle>
+            <CardDescription className="text-sm sm:text-base mt-2 px-2">
               Our team is reviewing your documents. This usually takes 24-48 hours.
             </CardDescription>
           </CardHeader>
@@ -151,29 +189,73 @@ export default function AgentKYC() {
     );
   }
 
+  // ✅ Status: APPROVED (Fully Responsive)
   if (status === 'APPROVED') {
     return (
-      <div className="max-w-3xl mx-auto pt-10 px-4">
-        <Card className="border-l-4 border-l-green-500 shadow-md">
-          <CardHeader className="text-center pb-10 pt-10">
-            <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle2 className="w-10 h-10 text-green-600" />
-            </div>
-            <CardTitle className="text-2xl">KYC Verified</CardTitle>
-            <CardDescription className="text-base mt-2">
-              Congratulations! Your account is fully verified. You can now access all agent features.
-            </CardDescription>
+      <>
+        {/* Success Card */}
+        <Card className="border-l-4 border-l-green-500">
+          <CardHeader className="text-center">
+            <CheckCircle2 className="text-green-600" />
+            <CardTitle>KYC Verified</CardTitle>
+            <CardDescription>Your account is fully verified.</CardDescription>
           </CardHeader>
+          <CardFooter className="flex justify-center">
+            <Button onClick={() => setShowDetails(true)}>View My Submitted Documents</Button>
+          </CardFooter>
+        </Card>
+
+        <AdminKYCModal
+          isOpen={showDetails}
+          onClose={() => setShowDetails(false)}
+          data={kycData}
+          mode="agent" 
+        />
+      </>
+    );
+  }
+
+  // ✅ Status: REJECTED (Fully Responsive)
+  if (status === 'REJECTED') {
+    return (
+      <div className="w-full max-w-3xl mx-auto pt-6 sm:pt-10 px-4">
+        <Card className="border-l-4 border-l-red-500 shadow-md">
+          <CardHeader className="text-center pb-6 sm:pb-10 pt-6 sm:pt-10 px-4">
+            <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-red-100 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+              <XCircle className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" />
+            </div>
+            <CardTitle className="text-xl sm:text-2xl font-bold">KYC Rejected</CardTitle>
+            <CardDescription className="text-sm sm:text-base mt-2 px-2">
+              Your KYC application was rejected. Please review the reason below and resubmit.
+            </CardDescription>
+            {rejectionReason && (
+              <Alert variant="destructive" className="mt-4 sm:mt-6 text-left mx-auto max-w-lg">
+                <AlertTitle className="text-sm sm:text-base font-semibold">Rejection Reason</AlertTitle>
+                <AlertDescription className="text-xs sm:text-sm mt-1">{rejectionReason}</AlertDescription>
+              </Alert>
+            )}
+          </CardHeader>
+          <CardFooter className="flex justify-center pb-6 sm:pb-8">
+            <Button
+              onClick={() => setStatus('NOT_SUBMITTED')}
+              className="w-full sm:w-auto px-6 sm:px-8 h-10 sm:h-11 text-sm sm:text-base"
+            >
+              Resubmit KYC
+            </Button>
+          </CardFooter>
         </Card>
       </div>
     );
   }
 
+  // ✅ Default: NOT_SUBMITTED (Show Form)
   return (
     <>
       <div className="flex flex-col space-y-2 mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-primary">KYC Verification</h1>
-        <p className="text-muted-foreground">Complete your profile to activate payouts and referral links.</p>
+        <h1 className="text-lg sm:text-2xl md:text-3xl font-bold tracking-tight text-primary">KYC Verification</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground">
+          Complete your profile to activate payouts and referral links.
+        </p>
       </div>
 
       <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 mb-6">
@@ -183,7 +265,6 @@ export default function AgentKYC() {
           Your documents are encrypted and stored securely.
         </AlertDescription>
       </Alert>
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
