@@ -69,7 +69,7 @@ export default function TermsOfService() {
                   'Comply with all applicable laws and regulations',
                 ].map((item, index) => (
                   <li key={index} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -92,7 +92,7 @@ export default function TermsOfService() {
                 'Performance bonuses for top 10 agents quarterly',
               ].map((item, index) => (
                 <li key={index} className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -115,7 +115,7 @@ export default function TermsOfService() {
                 'Using automated bots or scripts',
               ].map((item, index) => (
                 <li key={index} className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center shrink-0 mt-0.5">
                     <div className="w-2 h-2 bg-red-500 rounded-full" />
                   </div>
                   <span>{item}</span>

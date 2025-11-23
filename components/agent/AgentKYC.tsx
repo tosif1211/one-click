@@ -118,7 +118,7 @@ export default function AgentKYC() {
     });
 
     try {
-      await axios.post('/api/kyc/submit', formData, {
+      await axios.post('/api/agent/kyc/submit', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 

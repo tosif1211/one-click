@@ -165,7 +165,7 @@ function ResetPasswordContent() {
             {errorType === 'expired' && (
               <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 mb-6">
                 <div className="flex gap-3">
-                  <Clock className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <Clock className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="text-sm font-semibold mb-1">Why did my link expire?</h4>
                     <p className="text-xs text-slate-400">Reset links expire after 1 hour for security reasons.</p>

@@ -34,7 +34,7 @@ import {
   AlertCircle,
   Lock,
   Briefcase,
-  PieChart
+  PieChart,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -47,7 +47,6 @@ interface NavSection {
     href: string;
     label: string;
     icon: React.ElementType;
-    badge?: string;
   }>;
 }
 
@@ -83,7 +82,7 @@ const agentNavigation: NavSection[] = [
   {
     section: 'Verification',
     items: [
-      { href: '/agent/kyc', label: 'KYC Verification', icon: ShieldCheck, badge: 'Required' },
+      { href: '/agent/kyc', label: 'KYC Verification', icon: ShieldCheck },
       { href: '/agent/documents', label: 'Documents', icon: FileText },
     ],
   },
@@ -129,7 +128,7 @@ const adminNavigation: NavSection[] = [
     items: [
       { href: '/admin/users', label: 'All Users', icon: Users },
       { href: '/admin/agents', label: 'Agent Management', icon: Briefcase },
-      { href: '/admin/kyc-approvals', label: 'KYC Approvals', icon: ShieldCheck, badge: 'Pending' },
+      { href: '/admin/kyc-approvals', label: 'KYC Approvals', icon: ShieldCheck },
       { href: '/admin/bans', label: 'Banned Accounts', icon: Shield },
     ],
   },
@@ -137,7 +136,7 @@ const adminNavigation: NavSection[] = [
     section: 'Finance & Payouts',
     items: [
       { href: '/admin/finance/overview', label: 'Finance Overview', icon: DollarSign },
-      { href: '/admin/finance/payouts', label: 'Withdrawal Requests', icon: Wallet, badge: 'Action' },
+      { href: '/admin/finance/payouts', label: 'Withdrawal Requests', icon: Wallet },
       { href: '/admin/finance/transactions', label: 'Global Transactions', icon: Receipt },
       { href: '/admin/finance/commission-rates', label: 'Commission Rules', icon: Settings },
     ],
@@ -170,19 +169,8 @@ function NavigationLinks({ isMobile = false, onLinkClick }: { isMobile?: boolean
   // Determine role based on authenticated user
   const isAdmin = user && isSuperAdmin(user.email || '');
   const navigation = isAdmin ? adminNavigation : agentNavigation;
-  const badgeColor = isAdmin ? 'bg-destructive/10 text-destructive' : 'bg-orange-500/20 text-orange-500';
 
-  const renderLink = ({
-    href,
-    label,
-    icon: Icon,
-    badge,
-  }: {
-    href: string;
-    label: string;
-    icon: React.ElementType;
-    badge?: string;
-  }) => {
+  const renderLink = ({ href, label, icon: Icon }: { href: string; label: string; icon: React.ElementType }) => {
     const isActive = pathname === href;
 
     const link = (
@@ -193,15 +181,10 @@ function NavigationLinks({ isMobile = false, onLinkClick }: { isMobile?: boolean
           isActive ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground'
         } ${!isOpen && !isMobile ? 'justify-center' : ''}`}
       >
-        <Icon className="h-5 w-5 flex-shrink-0" />
+        <Icon className="h-5 w-5 shrink-0" />
         {(isOpen || isMobile) && (
           <>
             <span className="flex-1">{label}</span>
-            {badge && (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>
-                {badge}
-              </span>
-            )}
           </>
         )}
       </Link>

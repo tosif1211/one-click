@@ -1,4 +1,4 @@
-import ContactUs from "../components/auth/ContactUs";
+import ContactUs from "../../components/auth/ContactUs";
 
 function ContactUsPage() {
   return <ContactUs />;

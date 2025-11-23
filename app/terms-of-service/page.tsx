@@ -1,4 +1,4 @@
-import TermsOfService from "../components/auth/TermsOfService";
+import TermsOfService from "../../components/auth/TermsOfService";
 
 function TermsOfServicePage() {
   return <TermsOfService />;

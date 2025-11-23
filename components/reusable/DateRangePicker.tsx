@@ -109,7 +109,7 @@ export default function DateRangePicker({
             !date && 'text-muted-foreground'
           )}
         >
-          <CalendarDays className="mr-2 h-4 w-4 flex-shrink-0" />
+          <CalendarDays className="mr-2 h-4 w-4 shrink-0" />
           <span className="truncate">{formatDateForButton(date)}</span>
         </Button>
       </PopoverTrigger>
@@ -225,7 +225,7 @@ export default function DateRangePicker({
               onSelect={setTempDate}
               numberOfMonths={1}
               showOutsideDays={!isMobile} // Hide outside days on mobile for cleaner look
-              captionLayout="dropdown-buttons"
+              captionLayout="dropdown"
               fromYear={new Date().getFullYear() - 10}
               toYear={new Date().getFullYear() + 10}
               className={cn(
