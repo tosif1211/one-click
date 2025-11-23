@@ -17,7 +17,7 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
-import { Textarea } from '../textarea';
+import { Textarea } from '../ui/textarea';
 
 export interface KYCSubmission {
   status: string;

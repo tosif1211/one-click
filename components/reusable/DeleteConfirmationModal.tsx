@@ -9,8 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
-import { Button } from '../../../components/ui/ui/button';
-
+import { Button } from '../ui/button';
 interface DeleteConfirmationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
